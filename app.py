@@ -283,7 +283,6 @@ if name and predict_clicked:
 st.divider()
 st.markdown("""
 <div class="footer">
-    Built with ❤️ using scikit-learn, pandas, and Streamlit<br>
-    Master's Programme — Introduction to Machine Learning Methods · May 2026
+    Master's Programme — Introduction to Machine Learning Methods and Data Mining · May 2026
 </div>
 """, unsafe_allow_html=True)
