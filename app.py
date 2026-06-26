@@ -69,6 +69,7 @@ with st.sidebar:
     - **Calibration Slope:** 0.9484 (near ideal 1.0)
     """)
     st.divider()
+    
     st.subheader("📊 Accuracy by Category")
     st.markdown("""
     | Category | Accuracy |
@@ -76,6 +77,11 @@ with st.sidebar:
     | Strong Female | **91.1%** ✅ |
     | Strong Male | **82.0%** ✅ |
     | Unisex | **58.8%** ⚠️ |
+    
+    **Why Unisex accuracy is lower:**
+    Names with P(male) between 0.04 and 0.85 are truly ambiguous. 
+    The model is **honest about uncertainty** — it flags these with low confidence and a warning.
+    This is a fundamental data limitation, not a model failure.
     """)
     st.divider()
     st.caption("**Dataset:** US Social Security, UK ONS, British Columbia, Australian Government")
