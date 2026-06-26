@@ -1,8 +1,3 @@
-
-
-### 2. `app.py`
-
-```python
 """
 Gender Prediction Web App
 Streamlit interface for the gender prediction model
@@ -13,18 +8,17 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+import joblib
 import warnings
 warnings.filterwarnings('ignore')
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from src.data_loader import load_and_clean_data, prepare_splits
-from src.gmm_threshold import get_thresholds_and_categories
-from src.features import build_feature_matrices
-from src.model import train_models
+from src.data_loader import load_and_clean_data
+from src.features import extract_features
 from src.predict import predict_name_gender
 
-# Page Configuration
+# ページ設定
 st.set_page_config(
     page_title="Gender Predictor",
     page_icon="👤",
@@ -32,7 +26,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS
+# カスタムCSS
 st.markdown("""
 <style>
     .main-header { text-align: center; padding: 20px 0; }
@@ -46,7 +40,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Header
+# ヘッダー
 st.markdown("""
 <div class="main-header">
     <h1>👤 Gender Predictor</h1>
@@ -54,7 +48,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Sidebar
+# サイドバー
 with st.sidebar:
     st.header("ℹ️ About This Tool")
     st.markdown("""
@@ -81,54 +75,35 @@ with st.sidebar:
     st.divider()
     st.caption("**Dataset:** US Social Security, UK ONS, British Columbia, Australian Government")
 
-# Load Models (Cached)
+# モデルを読み込む（キャッシュ付き）
 @st.cache_resource
 def load_models():
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    
-    status_text.text("Loading data...")
-    progress_bar.progress(20)
-    df = load_and_clean_data('data/name_gender_dataset.csv')
-    
-    status_text.text("Training GMM for unisex detection...")
-    progress_bar.progress(40)
-    low_thresh, high_thresh, df = get_thresholds_and_categories(df)
-    
-    status_text.text("Creating data splits...")
-    progress_bar.progress(60)
-    df_train, df_val, df_test = prepare_splits(df)
-    
-    status_text.text("Building feature matrices...")
-    progress_bar.progress(70)
-    features = build_feature_matrices(df_train, df_val, df_test)
-    
-    status_text.text("Training models (this may take 30-60 seconds)...")
-    progress_bar.progress(80)
-    models = train_models(features)
-    
-    progress_bar.progress(100)
-    status_text.text("✅ All models ready!")
-    
-    rfc_model = models['random_forest_classifier']['model']
-    rfr_model = models['random_forest_regressor']['model']
-    model_results = {
-        'rfc_accuracy': models['random_forest_classifier']['val_accuracy'],
-        'rfr_mae': models['random_forest_regressor']['val_mae'],
-        'rfr_r2': models['random_forest_regressor']['val_r2'],
-    }
-    return df, low_thresh, high_thresh, rfc_model, rfr_model, model_results
+    """保存されたモデルを読み込む"""
+    try:
+        print("📂 保存されたモデルを読み込み中...")
+        
+        # データを読み込む
+        df = load_and_clean_data('data/name_gender_dataset.csv')
+        
+        # モデルを読み込む
+        rfc_model = joblib.load('models/rfc_model.pkl')
+        rfr_model = joblib.load('models/rfr_model.pkl')
+        low_thresh, high_thresh = joblib.load('models/thresholds.pkl')
+        
+        print("✅ モデル読み込み完了！")
+        return df, low_thresh, high_thresh, rfc_model, rfr_model
+        
+    except FileNotFoundError as e:
+        st.error(f"❌ モデルファイルが見つかりません: {e}")
+        st.info("📝 'models/' ディレクトリにモデルファイルがありません。")
+        st.stop()
 
-# Load models
-try:
-    with st.spinner("🔄 Loading data and training models... (30-60 seconds)"):
-        df, low_thresh, high_thresh, rfc_model, rfr_model, model_results = load_models()
-    st.success("✅ Models loaded successfully!")
-except Exception as e:
-    st.error(f"❌ Error loading models: {str(e)}")
-    st.stop()
+# モデルを読み込む
+with st.spinner("🔄 モデルを読み込み中..."):
+    df, low_thresh, high_thresh, rfc_model, rfr_model = load_models()
+st.success("✅ モデル読み込み完了！")
 
-# Main Input
+# メイン入力
 st.divider()
 st.subheader("🔮 Predict Gender")
 
@@ -148,7 +123,7 @@ for idx, (col, sample) in enumerate(zip(sample_cols, sample_names)):
         name = sample
         predict_clicked = True
 
-# Prediction
+# 予測実行
 if name and predict_clicked:
     try:
         result = predict_name_gender(
@@ -159,7 +134,7 @@ if name and predict_clicked:
         
         col1, col2, col3, col4 = st.columns(4)
         
-        # Gender
+        # 性別表示
         with col1:
             gender_emoji = "♂️" if result['predicted_gender'] == "Male" else "♀️"
             gender_color = "#2196F3" if result['predicted_gender'] == "Male" else "#E91E63"
@@ -171,7 +146,7 @@ if name and predict_clicked:
             </div>
             """, unsafe_allow_html=True)
         
-        # Confidence
+        # 信頼度
         with col2:
             conf_value = float(result['confidence'].replace('%', ''))
             conf_color = "#4CAF50" if conf_value >= 70 else "#FF9800" if conf_value >= 50 else "#f44336"
@@ -196,7 +171,7 @@ if name and predict_clicked:
             </div>
             """, unsafe_allow_html=True)
         
-        # Category
+        # カテゴリ
         with col4:
             if result['category'] == "Strong Male":
                 cat_color, cat_icon = "#2196F3", "🟢"
@@ -233,7 +208,7 @@ if name and predict_clicked:
     except Exception as e:
         st.error(f"❌ Error predicting '{name}': {str(e)}")
 
-# Footer
+# フッター
 st.divider()
 st.markdown("""
 <div class="footer">
