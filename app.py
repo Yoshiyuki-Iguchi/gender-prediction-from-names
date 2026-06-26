@@ -283,6 +283,6 @@ if name and predict_clicked:
 st.divider()
 st.markdown("""
 <div class="footer">
-    Master's Programme — Introduction to Machine Learning Methods and Data Mining · May 2026
+    Gender Prediction from Names Project · May 2026
 </div>
 """, unsafe_allow_html=True)
