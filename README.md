@@ -1,96 +1,74 @@
 # Gender Prediction from First Names
 
-> A probabilistic approach to gender prediction using GMM-based unisex detection and Random Forest models.
+> A simple tool that predicts gender from first names — and tells you when it's not sure.
 
-[![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github.com/yourusername/gender-prediction-from-names/blob/main/notebooks/predictor_demo.ipynb)
-[![Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://your-app.streamlit.app)
-
-## Try it now! (No installation required)
-
-| Platform | Link | Description |
-|----------|------|-------------|
-| **\CID{632} Web App** | [Click here](https://your-app.streamlit.app) | **Easiest!** Just enter a name |
-| **Google Colab** | [Open In Colab](https://colab.research.google.com/github/yourusername/gender-prediction-from-names/blob/main/notebooks/predictor_demo.ipynb) | Run in browser - no setup |
-| **Jupyter Notebook** | [View on GitHub](notebooks/gender_prediction_updated_V2.ipynb) | Full analysis with all code |
+🔗 **Live Demo:** [hhttps://gender-prediction-from-names-v9oxlvhnlezal4ggsdtehu.streamlit.app/](https://gender-prediction-from-names-v9oxlvhnlezal4ggsdtehu.streamlit.app/)
 
 ---
 
-## Overview
+## How to Use
 
-This project builds a machine learning system that predicts gender from a first name using character-level features.
+**1. Go to the link above**  
+Just click the link — no installation, no login, nothing to download.
 
-**Key innovations:**
-- **Data-driven unisex detection** using 2-component Gaussian Mixture Model
-- **Calibrated confidence scores** via Random Forest Regressor (slope 0.948)
-- **Two-path prediction** (dataset lookup + character model)
-- **Interactive Web App** with real-time predictions
+**2. Enter a name**  
+Type any first name in the input box.
 
----
+**3. Get results**  
+You'll see:
+- Predicted gender (Male / Female)
+- Confidence score (0% to 100%)
+- Category (Strong Male / Strong Female / Unisex)
+- Warning if the name is ambiguous
 
-## Key Results
-
-| Category | Accuracy | N (Test) | Interpretation |
-|----------|----------|----------|----------------|
-| **Strong Male** | 82.0% | 5,181 | Model works reliably \UTF{2705} |
-| **Strong Female** | 91.1% | 8,923 | Model works reliably \UTF{2705} |
-| **Unisex** | 58.8% | 849 | Near-random - fundamental limit \CID{220} |
-
-**Overall:** 86.1% Accuracy \UTF{00B7} 0.9295 AUC-ROC \UTF{00B7} 0.9484 Calibration Slope
-
-> \CID{220} The accuracy collapse on unisex names is **NOT a model failure** - it's a fundamental property of the data. Names that are genuinely ambiguous cannot be resolved with character features alone.
+**4. Try examples**  
+Click any of the example buttons: James, Mary, Casey, Jordan, Riley, Quinn
 
 ---
 
-## Methodology
+## What This Tool Does
 
-### 1. Data Cleaning
-- 147,269 raw rows → 99,683 unique names
-- Removed: missing values, duplicates, dirty tokens, rare names
+This is a machine learning model that looks at first names and predicts gender based on spelling patterns.
 
-### 2. GMM Thresholding
-- Fit 2-component GMM **only on mixed-gender names**
-- Thresholds: **0.0407** (Female/Unisex) and **0.8500** (Unisex/Male)
-- Result: 5,657 unisex names (5.7% of corpus)
-
-### 3. Feature Engineering (65 features)
-- First/last letter one-hot (26 + 26)
-- Suffix flags (-son, -lyn, -ette, -ie, -ine)
-- Vowel ratio, name length, log frequency
-- Deterministic ord-based suffix encoding
-
-### 4. Models
-
-| Model | Task | Best Params | Accuracy |
-|-------|------|-------------|----------|
-| Logistic Regression | Binary | C=10 | 80.0% |
-| **RF Classifier** | Binary | n=100, depth=None | **86.1%** |
-| RF Regressor | P(male) | n=100, depth=None | MAE=0.1775 |
+- Uses a dataset of ~100,000 names from US, UK, Canada, and Australia
+- Analyzes character patterns: endings, first letters, vowel ratios, suffixes
+- Gives a confidence score — **it tells you when it's not sure**
 
 ---
 
-## Quick Start
+## Why Trust the Results?
 
-### Option 1: Web App (Easiest)
-Just visit: [https://your-app.streamlit.app](https://your-app.streamlit.app)
+| Category | Accuracy | Meaning |
+|----------|----------|---------|
+| Strong Female | 91.1% | Names like Mary, Elizabeth — clear female signal |
+| Strong Male | 82.0% | Names like James, John — clear male signal |
+| Unisex | 58.8% | Names like Casey, Jordan — truly ambiguous |
 
-### Option 2: Local Installation
+**Important:** The 58.8% accuracy for unisex names is **not a bug**.  
+When a name is used by both genders, no model can reliably predict it.  
+That's why the tool shows confidence scores and warnings — it's honest when it doesn't know.
 
-```bash
-# Clone the repository
-git clone https://github.com/yourusername/gender-prediction-from-names.git
-cd gender-prediction-from-names
+---
 
-# Create virtual environment
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+## Try It Now
 
-# Install dependencies
-pip install -r requirements.txt
+→ [https://gender-prediction-from-names-v9oxlvhnlezal4ggsdtehu.streamlit.app/)
 
-# Run the Streamlit app
-streamlit run app.py
+---
 
-# Or run the Jupyter notebook
-jupyter notebook notebooks/gender_prediction_updated_V2.ipynb
+## Technical Overview (for the curious)
+
+**Data:** 99,683 unique names from US Social Security, UK ONS, British Columbia, and Australian government data.
+
+**Method:**
+- Gaussian Mixture Model (GMM) to detect unisex names
+- Random Forest Classifier (86.1% accuracy)
+- Random Forest Regressor for confidence calibration
+
+**Features:** 65 character-level features including first/last letters, suffixes, vowel ratio, and name length.
+
+---
+
+## License
+
+MIT — free to use.
