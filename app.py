@@ -8,6 +8,8 @@ import pandas as pd
 import numpy as np
 import sys
 import os
+import zipfile
+import requests
 import joblib
 import warnings
 warnings.filterwarnings('ignore')
@@ -18,7 +20,10 @@ from src.data_loader import load_and_clean_data
 from src.features import extract_features
 from src.predict import predict_name_gender
 
-# ページ設定
+# Hugging Face model URL
+MODEL_URL = "https://huggingface.co/yyy998181/genderbyname/resolve/main/models.zip"
+
+# Page configuration
 st.set_page_config(
     page_title="Gender Predictor",
     page_icon="👤",
@@ -26,7 +31,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# カスタムCSS
+# Custom CSS
 st.markdown("""
 <style>
     .main-header { text-align: center; padding: 20px 0; }
@@ -40,7 +45,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ヘッダー
+# Header
 st.markdown("""
 <div class="main-header">
     <h1>👤 Gender Predictor</h1>
@@ -48,7 +53,7 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# サイドバー
+# Sidebar
 with st.sidebar:
     st.header("ℹ️ About This Tool")
     st.markdown("""
@@ -75,46 +80,86 @@ with st.sidebar:
     st.divider()
     st.caption("**Dataset:** US Social Security, UK ONS, British Columbia, Australian Government")
 
-# モデルを読み込む（キャッシュ付き）
+# Load models with caching
 @st.cache_resource
 def load_models():
-    """保存されたモデルを読み込む"""
+    """
+    Download models from Hugging Face and load them into memory.
+    First run: downloads the 132MB zip file (takes 1-3 minutes).
+    Subsequent runs: loads from cache (1-2 seconds).
+    """
+    
+    # Check if models already exist locally
+    if not os.path.exists('models/rfc_model.pkl'):
+        with st.spinner('📥 Downloading model from Hugging Face... (first time only, may take a few minutes)'):
+            # Create models directory
+            os.makedirs('models', exist_ok=True)
+            
+            # Download the zip file
+            try:
+                response = requests.get(MODEL_URL, stream=True)
+                response.raise_for_status()
+                total_size = int(response.headers.get('content-length', 0))
+                
+                # Show download progress
+                progress_bar = st.progress(0)
+                with open('models.zip', 'wb') as f:
+                    downloaded = 0
+                    for chunk in response.iter_content(chunk_size=8192):
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        if total_size > 0:
+                            progress_bar.progress(min(downloaded / total_size, 1.0))
+                
+                # Extract the zip file
+                with zipfile.ZipFile('models.zip', 'r') as zip_ref:
+                    zip_ref.extractall('.')
+                os.remove('models.zip')
+                st.success('✅ Model download complete!')
+                
+            except Exception as e:
+                st.error(f"❌ Download error: {str(e)}")
+                st.info("💡 Please check your internet connection and try again.")
+                st.stop()
+    
+    # Load models from disk
     try:
-        print("📂 保存されたモデルを読み込み中...")
-        
-        # データを読み込む
-        df = load_and_clean_data('data/name_gender_dataset.csv')
-        
-        # モデルを読み込む
         rfc_model = joblib.load('models/rfc_model.pkl')
         rfr_model = joblib.load('models/rfr_model.pkl')
         low_thresh, high_thresh = joblib.load('models/thresholds.pkl')
-        
-        print("✅ モデル読み込み完了！")
-        return df, low_thresh, high_thresh, rfc_model, rfr_model
-        
-    except FileNotFoundError as e:
-        st.error(f"❌ モデルファイルが見つかりません: {e}")
-        st.info("📝 'models/' ディレクトリにモデルファイルがありません。")
+    except Exception as e:
+        st.error(f"❌ Model loading error: {str(e)}")
         st.stop()
+    
+    # Load the dataset
+    df = load_and_clean_data('data/name_gender_dataset.csv')
+    
+    return df, low_thresh, high_thresh, rfc_model, rfr_model
 
-# モデルを読み込む
-with st.spinner("🔄 モデルを読み込み中..."):
+# Load models with spinner
+with st.spinner("🔄 Loading models..."):
     df, low_thresh, high_thresh, rfc_model, rfr_model = load_models()
-st.success("✅ モデル読み込み完了！")
+st.success("✅ Models loaded successfully!")
 
-# メイン入力
+# Main input section
 st.divider()
 st.subheader("🔮 Predict Gender")
 
+# Input row with predict button
 col1, col2 = st.columns([3, 1])
 with col1:
-    name = st.text_input("Enter a first name:", placeholder="e.g., Casey, Jordan, James", key="name_input", label_visibility="collapsed")
+    name = st.text_input(
+        "Enter a first name:",
+        placeholder="e.g., Casey, Jordan, James",
+        key="name_input",
+        label_visibility="collapsed"
+    )
 with col2:
     st.write("")
     st.write("")
     predict_clicked = st.button("🔮 Predict", type="primary", use_container_width=True)
 
+# Example name buttons
 st.caption("💡 Try these examples:")
 sample_cols = st.columns(6)
 sample_names = ["James", "Mary", "Casey", "Jordan", "Riley", "Quinn"]
@@ -123,7 +168,7 @@ for idx, (col, sample) in enumerate(zip(sample_cols, sample_names)):
         name = sample
         predict_clicked = True
 
-# 予測実行
+# Prediction logic
 if name and predict_clicked:
     try:
         result = predict_name_gender(
@@ -132,9 +177,10 @@ if name and predict_clicked:
         )
         st.divider()
         
+        # Display results in 4 columns
         col1, col2, col3, col4 = st.columns(4)
         
-        # 性別表示
+        # Gender
         with col1:
             gender_emoji = "♂️" if result['predicted_gender'] == "Male" else "♀️"
             gender_color = "#2196F3" if result['predicted_gender'] == "Male" else "#E91E63"
@@ -146,11 +192,18 @@ if name and predict_clicked:
             </div>
             """, unsafe_allow_html=True)
         
-        # 信頼度
+        # Confidence
         with col2:
             conf_value = float(result['confidence'].replace('%', ''))
-            conf_color = "#4CAF50" if conf_value >= 70 else "#FF9800" if conf_value >= 50 else "#f44336"
-            conf_icon = "✅" if conf_value >= 70 else "⚠️" if conf_value >= 50 else "❌"
+            if conf_value >= 70:
+                conf_color = "#4CAF50"
+                conf_icon = "✅"
+            elif conf_value >= 50:
+                conf_color = "#FF9800"
+                conf_icon = "⚠️"
+            else:
+                conf_color = "#f44336"
+                conf_icon = "❌"
             st.markdown(f"""
             <div style="text-align: center; padding: 20px; background: #f5f5f5; border-radius: 12px;">
                 <div style="font-size: 2em;">{conf_icon}</div>
@@ -159,10 +212,15 @@ if name and predict_clicked:
             </div>
             """, unsafe_allow_html=True)
         
-        # P(male)
+        # P(male) estimate
         with col3:
             pmale_value = float(result['p_male_estimate'])
-            pmale_color = "#2196F3" if pmale_value > 0.5 else "#E91E63" if pmale_value < 0.4 else "#FF9800"
+            if pmale_value > 0.5:
+                pmale_color = "#2196F3"
+            elif pmale_value < 0.4:
+                pmale_color = "#E91E63"
+            else:
+                pmale_color = "#FF9800"
             st.markdown(f"""
             <div style="text-align: center; padding: 20px; background: #f5f5f5; border-radius: 12px;">
                 <div style="font-size: 2em;">📈</div>
@@ -171,14 +229,17 @@ if name and predict_clicked:
             </div>
             """, unsafe_allow_html=True)
         
-        # カテゴリ
+        # Category
         with col4:
             if result['category'] == "Strong Male":
-                cat_color, cat_icon = "#2196F3", "🟢"
+                cat_color = "#2196F3"
+                cat_icon = "🟢"
             elif result['category'] == "Strong Female":
-                cat_color, cat_icon = "#E91E63", "🟣"
+                cat_color = "#E91E63"
+                cat_icon = "🟣"
             else:
-                cat_color, cat_icon = "#FF9800", "🟠"
+                cat_color = "#FF9800"
+                cat_icon = "🟠"
             st.markdown(f"""
             <div style="text-align: center; padding: 20px; background: #f5f5f5; border-radius: 12px;">
                 <div style="font-size: 2em;">{cat_icon}</div>
@@ -187,17 +248,21 @@ if name and predict_clicked:
             </div>
             """, unsafe_allow_html=True)
         
+        # Display warnings
         if result['warning']:
             if "⚠️" in result['warning']:
                 st.warning(result['warning'])
             else:
                 st.info(result['warning'])
         
+        # Detailed information (collapsible)
         with st.expander("📋 Detailed Information"):
             st.markdown(f"**Name:** {result['name']}")
             st.markdown(f"**Source:** {result['source']}")
             st.markdown(f"**P(male) estimate:** {result['p_male_estimate']}")
             st.markdown(f"**GMM Thresholds:** {low_thresh:.3f} / {high_thresh:.3f}")
+            
+            # Show dataset statistics if name exists in dataset
             known = df[df['Name'] == result['name'].title()]
             if len(known) == 1:
                 row = known.iloc[0]
@@ -208,7 +273,7 @@ if name and predict_clicked:
     except Exception as e:
         st.error(f"❌ Error predicting '{name}': {str(e)}")
 
-# フッター
+# Footer
 st.divider()
 st.markdown("""
 <div class="footer">
