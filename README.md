@@ -2,9 +2,7 @@
 
 > A simple tool that predicts gender from first names — and tells you when it's not sure.
 
-🔗 **Live Demo:** https://gender-prediction-from-names-ns4ssvg2ke3uwma6sbs6de.streamlit.app/
-
-**Demo ↓** (App may take a few seconds to wake up)
+🔗 **Live Demo (App may take a few seconds to wake up):** https://gender-prediction-from-names-ns4ssvg2ke3uwma6sbs6de.streamlit.app/
 
 ![demo](assets/demo.gif)
 
