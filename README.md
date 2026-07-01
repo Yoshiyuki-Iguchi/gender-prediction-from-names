@@ -4,7 +4,7 @@
 
 🔗 **Live Demo:** https://gender-prediction-from-names-ns4ssvg2ke3uwma6sbs6de.streamlit.app/
 
-## Demo ↓ (App may take a few seconds to wake up)
+# Demo ↓ (App may take a few seconds to wake up)
 
 ![demo](assets/demo.gif)
 
